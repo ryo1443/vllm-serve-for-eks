@@ -1,0 +1,29 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: qwen3-8b-cluster
+  region: ap-northeast-1
+  version: "1.32"
+
+vpc:
+  nat:
+    gateway: Single
+
+managedNodeGroups:
+  - name: gpu-ng
+    instanceType: g4dn.2xlarge
+    desiredCapacity: 1
+    amiFamily: AmazonLinux2
+    # publicSubnetに配置する場合は何も書かない
+    labels:
+      accelerator: nvidia
+    taints:
+      - key: nvidia.com/gpu
+        value: "true"
+        effect: NoSchedule
+
+  - name: cpu-ng
+    instanceType: t3.medium
+    desiredCapacity: 1
+    amiFamily: AmazonLinux2

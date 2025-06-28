@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen3-8b-awq-vllm
+  namespace: qwen8b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qwen3-8b-vllm
+  template:
+    metadata:
+      labels:
+        app: qwen3-8b-vllm
+    spec:
+      nodeSelector:
+        role: "8b"                    # ★新GPUノードに付けたラベル
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model
+            - Qwen/Qwen3-8B-AWQ
+            - --served-model-name
+            - qwen3-8b
+            - --quantization
+            - awq
+            - --max-model-len
+            - "32768"
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+              memory: "28Gi"
+            requests:
+              nvidia.com/gpu: 1
+              memory: "28Gi"
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: hf-cache
+          emptyDir: {}

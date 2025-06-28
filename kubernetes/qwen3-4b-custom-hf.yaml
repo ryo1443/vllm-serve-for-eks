@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qwen4b-custom-hf
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen3-4b-custom-hf-vllm
+  namespace: qwen4b-custom-hf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qwen3-4b-custom-hf-vllm
+  template:
+    metadata:
+      labels:
+        app: qwen3-4b-custom-hf-vllm
+    spec:
+      nodeSelector:
+        accelerator: nvidia
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model
+            - ryokanazawa/Qwen4B-AWQ-custom   # お客様のモデルIDを指定
+            - --served-model-name
+            - qwen3-4b-custom
+            - --quantization
+            - awq
+            - --max-model-len
+            - "32768"
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+              memory: "14Gi"
+            requests:
+              nvidia.com/gpu: 1
+              memory: "14Gi"
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: hf-cache
+          emptyDir: {}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen3-4b-custom-hf-svc
+  namespace: qwen4b-custom-hf
+spec:
+  type: LoadBalancer
+  selector:
+    app: qwen3-4b-custom-hf-vllm
+  ports:
+    - port: 8000
+      targetPort: 8000
